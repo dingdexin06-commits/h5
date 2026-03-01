@@ -1,0 +1,24 @@
+node_modules/
+backend/node_modules/
+frontend/node_modules/
+dist/
+.vite/
+.vite-cache/
+.env
+*.log
+
+# Local database files (SQLite)
+*.db
+*.db-journal
+
+# Frontend local Vite temp files
+frontend/vite.config.js.timestamp-*.mjs
+
+# Local debug/probe files
+backend/_write_probe.txt
+backend/_node_write_probe.txt
+backend/src/generated/prisma/query_engine-windows.dll.node.tmp*
+
+# Exclude local archive/artifacts
+gemini-ui-core.zip
+backend/src/generated/prisma/

@@ -1,0 +1,35 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Form {
+  id        String      @id @default(cuid())
+  type      String      @default("FILE")
+  title     String
+  content   String
+  creatorId String
+  status    String      @default("PENDING")
+  createdAt DateTime    @default(now())
+  approvals Approval[]
+
+  @@index([creatorId, createdAt])
+  @@index([status, createdAt])
+}
+
+model Approval {
+  id         String         @id @default(cuid())
+  formId     String
+  approverId String
+  action     String
+  comment    String?
+  createdAt  DateTime       @default(now())
+  form       Form           @relation(fields: [formId], references: [id], onDelete: Cascade)
+
+  @@index([formId, createdAt])
+}
