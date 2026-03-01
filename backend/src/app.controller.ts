@@ -1,4 +1,7 @@
-﻿import { Controller, Get } from '@nestjs/common'
+import { Controller, Get, UseGuards } from '@nestjs/common'
+import { CurrentUser } from './auth/current-user.decorator'
+import { AuthUser } from './auth/auth.types'
+import { JwtAuthGuard } from './auth/jwt-auth.guard'
 
 @Controller()
 export class AppController {
@@ -7,19 +10,9 @@ export class AppController {
     return { ok: true }
   }
 
+  @UseGuards(JwtAuthGuard)
   @Get('me')
-  getMe() {
-    return {
-      id: 'u_1001',
-      name: '测试用户',
-      department: {
-        id: 'd_01',
-        name: '产品研发'
-      },
-      roles: [
-        { id: 'r_admin', name: '管理员' },
-        { id: 'r_report', name: '报表查看' }
-      ]
-    }
+  getMe(@CurrentUser() user: AuthUser) {
+    return user
   }
 }

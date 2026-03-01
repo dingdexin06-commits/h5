@@ -1,9 +1,12 @@
-import { Body, Controller, Get, Headers, Param, Post, Query } from '@nestjs/common'
+import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common'
 import {
   ApprovalAction,
-  FormsService,
-  UserRole
+  CurrentUser as FormsCurrentUser,
+  FormsService
 } from './forms.service'
+import { CurrentUser } from '../auth/current-user.decorator'
+import { AuthUser } from '../auth/auth.types'
+import { JwtAuthGuard } from '../auth/jwt-auth.guard'
 
 interface CreateFormBody {
   title: string
@@ -15,24 +18,19 @@ interface ApproveFormBody {
   comment?: string
 }
 
+@UseGuards(JwtAuthGuard)
 @Controller('forms')
 export class FormsController {
   constructor(private readonly formsService: FormsService) {}
 
   @Post()
-  createForm(
-    @Body() body: CreateFormBody,
-    @Headers('x-user-role') userRoleHeader?: string
-  ) {
-    return this.formsService.createForm(body, this.getCurrentUser(userRoleHeader))
+  createForm(@Body() body: CreateFormBody, @CurrentUser() user: AuthUser) {
+    return this.formsService.createForm(body, this.toFormsUser(user))
   }
 
   @Get()
-  listForms(
-    @Query('scope') scope: string,
-    @Headers('x-user-role') userRoleHeader?: string
-  ) {
-    return this.formsService.listForms(scope, this.getCurrentUser(userRoleHeader))
+  listForms(@Query('scope') scope: string, @CurrentUser() user: AuthUser) {
+    return this.formsService.listForms(scope, this.toFormsUser(user))
   }
 
   @Get(':id')
@@ -44,22 +42,19 @@ export class FormsController {
   approveForm(
     @Param('id') id: string,
     @Body() body: ApproveFormBody,
-    @Headers('x-user-role') userRoleHeader?: string
+    @CurrentUser() user: AuthUser
   ) {
     return this.formsService.approveForm(
       id,
       body,
-      this.getCurrentUser(userRoleHeader)
+      this.toFormsUser(user)
     )
   }
 
-  private getCurrentUser(userRoleHeader?: string): { id: string; role: UserRole } {
-    const role = userRoleHeader === 'manager' ? 'manager' : 'employee'
-
-    if (role === 'manager') {
-      return { id: 'u_manager_1', role }
+  private toFormsUser(user: AuthUser): FormsCurrentUser {
+    return {
+      id: user.id,
+      role: user.role
     }
-
-    return { id: 'u_1001', role }
   }
 }

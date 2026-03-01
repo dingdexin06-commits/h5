@@ -17,6 +17,15 @@ describe('FormCreate page', () => {
   let fetchMock
 
   beforeEach(() => {
+    window.localStorage.clear()
+    window.localStorage.setItem(
+      'wecom_oa_auth',
+      JSON.stringify({
+        accessToken: 'token_demo',
+        user: { id: 'u_1001', role: 'employee' }
+      })
+    )
+
     fetchMock = vi.fn()
     vi.stubGlobal('fetch', fetchMock)
     navigateMock.mockReset()
@@ -25,6 +34,7 @@ describe('FormCreate page', () => {
   afterEach(() => {
     vi.restoreAllMocks()
     vi.unstubAllGlobals()
+    window.localStorage.clear()
   })
 
   it('shows validation error when title/content are empty', async () => {
@@ -72,7 +82,10 @@ describe('FormCreate page', () => {
     const [url, options] = fetchMock.mock.calls[0]
     expect(url).toBe('/api/forms')
     expect(options.method).toBe('POST')
-    expect(options.headers).toEqual({ 'Content-Type': 'application/json' })
+    expect(options.headers).toEqual({
+      'Content-Type': 'application/json',
+      Authorization: 'Bearer token_demo'
+    })
     expect(JSON.parse(options.body)).toEqual({
       title: 'Laptop Purchase',
       content: 'Request 2 dev laptops'

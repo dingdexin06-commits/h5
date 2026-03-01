@@ -44,6 +44,10 @@ describe('FormsController (e2e)', () => {
   let app: INestApplication
   let prisma: PrismaService
   let formId: string
+  let employeeToken = ''
+  let managerToken = ''
+
+  const authHeader = (token: string) => ({ Authorization: `Bearer ${token}` })
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -58,6 +62,19 @@ describe('FormsController (e2e)', () => {
     await ensureSchema(prisma)
     await prisma.approval.deleteMany()
     await prisma.form.deleteMany()
+
+    const employeeLogin = await request(app.getHttpServer())
+      .post('/api/auth/login')
+      .send({ username: 'employee', password: '123456' })
+      .expect(201)
+
+    const managerLogin = await request(app.getHttpServer())
+      .post('/api/auth/login')
+      .send({ username: 'manager', password: '123456' })
+      .expect(201)
+
+    employeeToken = employeeLogin.body.accessToken
+    managerToken = managerLogin.body.accessToken
   })
 
   afterAll(async () => {
@@ -67,6 +84,7 @@ describe('FormsController (e2e)', () => {
   it('POST /api/forms creates a pending form', async () => {
     const response = await request(app.getHttpServer())
       .post('/api/forms')
+      .set(authHeader(employeeToken))
       .send({
         title: 'Purchase laptops',
         content: 'Request to purchase 2 dev laptops'
@@ -89,6 +107,7 @@ describe('FormsController (e2e)', () => {
   it('GET /api/forms?scope=mine returns forms created by current employee', async () => {
     const response = await request(app.getHttpServer())
       .get('/api/forms')
+      .set(authHeader(employeeToken))
       .query({ scope: 'mine' })
       .expect(200)
 
@@ -101,6 +120,7 @@ describe('FormsController (e2e)', () => {
   it('GET /api/forms?scope=todo returns [] for employee and pending for manager', async () => {
     const employeeResponse = await request(app.getHttpServer())
       .get('/api/forms')
+      .set(authHeader(employeeToken))
       .query({ scope: 'todo' })
       .expect(200)
 
@@ -108,8 +128,8 @@ describe('FormsController (e2e)', () => {
 
     const managerResponse = await request(app.getHttpServer())
       .get('/api/forms')
+      .set(authHeader(managerToken))
       .query({ scope: 'todo' })
-      .set('x-user-role', 'manager')
       .expect(200)
 
     expect(Array.isArray(managerResponse.body)).toBe(true)
@@ -123,6 +143,7 @@ describe('FormsController (e2e)', () => {
   it('POST /api/forms/:id/approve forbids employee', async () => {
     await request(app.getHttpServer())
       .post(`/api/forms/${formId}/approve`)
+      .set(authHeader(employeeToken))
       .send({
         action: 'APPROVE',
         comment: 'agree'
@@ -133,7 +154,7 @@ describe('FormsController (e2e)', () => {
   it('POST /api/forms/:id/approve allows manager and updates detail', async () => {
     const approveResponse = await request(app.getHttpServer())
       .post(`/api/forms/${formId}/approve`)
-      .set('x-user-role', 'manager')
+      .set(authHeader(managerToken))
       .send({
         action: 'APPROVE',
         comment: 'agree'
@@ -149,6 +170,7 @@ describe('FormsController (e2e)', () => {
 
     const detailResponse = await request(app.getHttpServer())
       .get(`/api/forms/${formId}`)
+      .set(authHeader(employeeToken))
       .expect(200)
 
     expect(detailResponse.body.form).toMatchObject({
@@ -166,7 +188,7 @@ describe('FormsController (e2e)', () => {
   it('POST /api/forms/:id/approve rejects non-pending form', async () => {
     await request(app.getHttpServer())
       .post(`/api/forms/${formId}/approve`)
-      .set('x-user-role', 'manager')
+      .set(authHeader(managerToken))
       .send({
         action: 'REJECT',
         comment: 'duplicate approval'

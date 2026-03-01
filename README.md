@@ -1,4 +1,4 @@
-﻿# wecom-oa
+# wecom-oa
 
 ## Frontend
 
@@ -10,7 +10,7 @@ npm test
 npm run build
 ```
 
-Vite 已将 `/api` 代理到 `http://localhost:3000`。
+Vite proxies `/api` to `http://localhost:3000`.
 
 ## Backend
 
@@ -20,65 +20,85 @@ npm install
 npm run start:dev
 ```
 
-可用接口：
+## Auth
 
-- `GET /api/health` 返回 `{ ok: true }`
-- `GET /api/me` 返回固定测试用户（含部门、角色）
+### Login accounts (demo)
 
-### 审批接口（forms）curl 示例
+- employee / 123456
+- manager / 123456
+
+### Login API
 
 ```bash
-# 1) 普通员工发起审批（默认员工 id=u_1001）
+curl -X POST http://localhost:3000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"employee","password":"123456"}'
+```
+
+The response includes `accessToken`. Use it as `Authorization: Bearer <token>`.
+
+## APIs
+
+- `GET /api/health` -> `{ ok: true }`
+- `GET /api/me` -> current user from token
+- `POST /api/forms` create form
+- `GET /api/forms?scope=mine|todo` list forms
+- `GET /api/forms/:id` detail
+- `POST /api/forms/:id/approve` approve/reject
+
+### curl example for forms
+
+```bash
+# 1) login as employee
+EMP_TOKEN=$(curl -s -X POST http://localhost:3000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"employee","password":"123456"}' | jq -r '.accessToken')
+
+# 2) create form
 curl -X POST http://localhost:3000/api/forms \
   -H "Content-Type: application/json" \
-  -d "{\"title\":\"Laptop Purchase\",\"content\":\"Request 2 dev laptops\"}"
+  -H "Authorization: Bearer $EMP_TOKEN" \
+  -d '{"title":"Laptop Purchase","content":"Request 2 dev laptops"}'
 
-# 2) 查询我发起的审批
-curl "http://localhost:3000/api/forms?scope=mine"
-
-# 3) 经理查询待审批（需请求头 x-user-role=manager）
-curl "http://localhost:3000/api/forms?scope=todo" \
-  -H "x-user-role: manager"
-
-# 4) 查询审批详情
-curl "http://localhost:3000/api/forms/f_1"
-
-# 5) 经理同意/拒绝审批
-curl -X POST http://localhost:3000/api/forms/f_1/approve \
+# 3) login as manager
+MGR_TOKEN=$(curl -s -X POST http://localhost:3000/api/auth/login \
   -H "Content-Type: application/json" \
-  -H "x-user-role: manager" \
-  -d "{\"action\":\"APPROVE\",\"comment\":\"Approved\"}"
+  -d '{"username":"manager","password":"123456"}' | jq -r '.accessToken')
+
+# 4) list manager todo
+curl "http://localhost:3000/api/forms?scope=todo" \
+  -H "Authorization: Bearer $MGR_TOKEN"
 ```
 
-### 审批接口（forms）PowerShell 示例（推荐）
+### PowerShell example for forms
 
 ```powershell
-# 1) 普通员工发起审批（默认员工 id=u_1001）
-$body = @{
-  title = "Laptop Purchase"
-  content = "Request 2 dev laptops"
-} | ConvertTo-Json
+# 1) login as employee
+$employeeLoginBody = @{ username = "employee"; password = "123456" } | ConvertTo-Json
+$employeeToken = (Invoke-RestMethod -Method Post -Uri "http://localhost:3000/api/auth/login" `
+  -ContentType "application/json" -Body $employeeLoginBody).accessToken
 
+# 2) create form
+$createBody = @{ title = "Laptop Purchase"; content = "Request 2 dev laptops" } | ConvertTo-Json
 $created = Invoke-RestMethod -Method Post -Uri "http://localhost:3000/api/forms" `
-  -ContentType "application/json" -Body $body
+  -Headers @{ Authorization = "Bearer $employeeToken" } -ContentType "application/json" -Body $createBody
 
-# 2) 查询我发起的审批
-Invoke-RestMethod -Method Get -Uri "http://localhost:3000/api/forms?scope=mine"
+# 3) login as manager
+$managerLoginBody = @{ username = "manager"; password = "123456" } | ConvertTo-Json
+$managerToken = (Invoke-RestMethod -Method Post -Uri "http://localhost:3000/api/auth/login" `
+  -ContentType "application/json" -Body $managerLoginBody).accessToken
 
-# 3) 经理查询待审批（需请求头 x-user-role=manager）
+# 4) manager todo list
 Invoke-RestMethod -Method Get -Uri "http://localhost:3000/api/forms?scope=todo" `
-  -Headers @{ "x-user-role" = "manager" }
+  -Headers @{ Authorization = "Bearer $managerToken" }
 
-# 4) 查询审批详情
-Invoke-RestMethod -Method Get -Uri "http://localhost:3000/api/forms/$($created.id)"
-
-# 5) 经理同意/拒绝审批
+# 5) manager approves
 $approveBody = @{ action = "APPROVE"; comment = "Approved" } | ConvertTo-Json
 Invoke-RestMethod -Method Post -Uri "http://localhost:3000/api/forms/$($created.id)/approve" `
-  -Headers @{ "x-user-role" = "manager" } -ContentType "application/json" -Body $approveBody
+  -Headers @{ Authorization = "Bearer $managerToken" } -ContentType "application/json" -Body $approveBody
 ```
 
-### 一键冒烟脚本
+### One-command smoke test
 
 ```bash
 cd backend

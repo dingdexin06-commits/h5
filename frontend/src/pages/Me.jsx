@@ -1,14 +1,17 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { apiFetch, clearAuthSession, getAuthUser } from '../auth'
 
 export default function Me() {
-  const [profile, setProfile] = useState(null)
+  const navigate = useNavigate()
+  const [profile, setProfile] = useState(getAuthUser())
   const [error, setError] = useState('')
 
   useEffect(() => {
     let alive = true
-    fetch('/api/me')
+    apiFetch('/api/me')
       .then((res) => {
-        if (!res.ok) throw new Error('个人信息获取失败')
+        if (!res.ok) throw new Error('failed to load profile')
         return res.json()
       })
       .then((data) => {
@@ -18,39 +21,49 @@ export default function Me() {
         if (alive) setError(err.message)
       })
 
-    return () => { alive = false }
+    return () => {
+      alive = false
+    }
   }, [])
+
+  const onLogout = () => {
+    clearAuthSession()
+    navigate('/login', { replace: true })
+  }
 
   return (
     <div className="page">
-      <div className="page-title">个人中心</div>
-      
+      <div className="page-head">
+        <div className="page-title">Profile</div>
+        <button className="text-button" type="button" onClick={onLogout}>Logout</button>
+      </div>
+
       <div className="card">
-        {error && <div className="status-box error">⚠️ {error}</div>}
-        {!error && !profile && <div className="status-box">资料加载中...</div>}
-        
+        {error && <div className="status-box error">{error}</div>}
+        {!error && !profile && <div className="status-box">Loading profile...</div>}
+
         {profile && (
           <div className="profile">
             <div className="profile-avatar">{profile.name?.[0] || 'U'}</div>
             <div className="profile-name">{profile.name}</div>
-            <div className="list-meta" style={{ marginTop: '12px' }}>工号：{profile.id}</div>
-            <div className="list-meta">部门：{profile.department?.name || '未分配'}</div>
+            <div className="list-meta" style={{ marginTop: '12px' }}>ID: {profile.id}</div>
+            <div className="list-meta">Department: {profile.department?.name || '-'}</div>
             <div className="list-meta">
-              角色：{profile.roles?.map((role) => role.name).join(' / ') || '普通员工'}
+              Roles: {profile.roles?.map((role) => role.name).join(' / ') || '-'}
             </div>
           </div>
         )}
       </div>
 
-      <div className="section-title">通用服务</div>
+      <div className="section-title">General</div>
       <div className="list">
         <div className="list-item">
-          <div className="list-title">账号与安全</div>
-          <div className="list-meta">密码修改、设备管理等</div>
+          <div className="list-title">Account & Security</div>
+          <div className="list-meta">Password reset and device management</div>
         </div>
         <div className="list-item">
-          <div className="list-title">消息设置</div>
-          <div className="list-meta">审批流转通知提醒配置</div>
+          <div className="list-title">Notifications</div>
+          <div className="list-meta">Configure approval and workflow notifications</div>
         </div>
       </div>
     </div>

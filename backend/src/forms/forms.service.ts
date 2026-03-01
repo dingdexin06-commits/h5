@@ -5,10 +5,10 @@ import {
   NotFoundException
 } from '@nestjs/common'
 import { PrismaService } from '../prisma/prisma.service'
+import { UserRole } from '../auth/auth.types'
 
 export type FormStatus = 'PENDING' | 'APPROVED' | 'REJECTED'
 export type ApprovalAction = 'APPROVE' | 'REJECT'
-export type UserRole = 'manager' | 'employee'
 
 export interface Form {
   id: string
@@ -29,7 +29,7 @@ export interface Approval {
   createdAt: string
 }
 
-interface CurrentUser {
+export interface CurrentUser {
   id: string
   role: UserRole
 }

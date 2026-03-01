@@ -3,10 +3,27 @@ import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import Todo from './Todo.jsx'
 
+function setSession(userRole = 'manager') {
+  window.localStorage.setItem(
+    'wecom_oa_auth',
+    JSON.stringify({
+      accessToken: 'token_demo',
+      user: {
+        id: userRole === 'manager' ? 'u_manager_1' : 'u_1001',
+        role: userRole,
+        name: userRole,
+        department: { id: 'd_01', name: 'dept' },
+        roles: []
+      }
+    })
+  )
+}
+
 describe('Todo page', () => {
   let fetchMock
 
   beforeEach(() => {
+    window.localStorage.clear()
     fetchMock = vi.fn()
     vi.stubGlobal('fetch', fetchMock)
   })
@@ -14,9 +31,12 @@ describe('Todo page', () => {
   afterEach(() => {
     vi.restoreAllMocks()
     vi.unstubAllGlobals()
+    window.localStorage.clear()
   })
 
   it('loads manager todo list by default and renders rows', async () => {
+    setSession('manager')
+
     fetchMock.mockResolvedValue({
       ok: true,
       json: async () => [
@@ -41,7 +61,7 @@ describe('Todo page', () => {
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith('/api/forms?scope=todo', {
-        headers: { 'x-user-role': 'manager' }
+        headers: { Authorization: 'Bearer token_demo' }
       })
     })
 
@@ -49,7 +69,9 @@ describe('Todo page', () => {
     expect(screen.getByText(/u_1001/)).toBeInTheDocument()
   })
 
-  it('switches role and scope and re-fetches with expected query/header', async () => {
+  it('loads mine by default for employee and supports scope switching', async () => {
+    setSession('employee')
+
     fetchMock.mockResolvedValue({
       ok: true,
       json: async () => []
@@ -64,23 +86,17 @@ describe('Todo page', () => {
     )
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenNthCalledWith(1, '/api/forms?scope=todo', {
-        headers: { 'x-user-role': 'manager' }
-      })
-    })
-
-    fireEvent.click(screen.getByRole('checkbox'))
-    await waitFor(() => {
-      expect(fetchMock).toHaveBeenNthCalledWith(2, '/api/forms?scope=todo', {
-        headers: {}
+      expect(fetchMock).toHaveBeenNthCalledWith(1, '/api/forms?scope=mine', {
+        headers: { Authorization: 'Bearer token_demo' }
       })
     })
 
     const scopeButtons = screen.getAllByRole('button')
-    fireEvent.click(scopeButtons[1])
+    fireEvent.click(scopeButtons[0])
+
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenNthCalledWith(3, '/api/forms?scope=mine', {
-        headers: {}
+      expect(fetchMock).toHaveBeenNthCalledWith(2, '/api/forms?scope=todo', {
+        headers: { Authorization: 'Bearer token_demo' }
       })
     })
   })

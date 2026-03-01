@@ -161,3 +161,23 @@ body { margin: 0; background: var(--bg-main); }
 }
 
 @media (max-width: 420px) { .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+.login-page {
+  min-height: calc(100vh - 40px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.text-button {
+  border: 0;
+  background: transparent;
+  color: var(--color-primary);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.text-button:hover {
+  text-decoration: underline;
+}
